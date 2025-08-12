@@ -76,8 +76,8 @@ void BTreeNode<T>::updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &chil
 template <typename T>
 size_t BTreeNode<T>::getChildIndex(std::shared_ptr<BTreeNode<T>> child){
     auto it =
-        std::lower_bound(this->children.begin(),
-                         this->children.end(), child);
+        std::find(this->children.begin(),
+                         this->children.end(), child); // more efficient way??
     if (it == this->children.end() || *it != child) {
         throw std::runtime_error("Node not found in parent's children");
     }

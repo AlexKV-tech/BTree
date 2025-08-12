@@ -62,7 +62,7 @@ std::pair<std::shared_ptr<BTreeNode<T>>, size_t> BTree<T>::findPredecessor(const
     while (!predecessor->isLeaf()){
         predecessor = predecessor->getChildAtIndex(predecessor->getChildrenCount() - 1);
     }
-    return {predecessor, predecessor->values.size()};
+    return {predecessor, predecessor->getValsCount()};
 }
 template<typename T>
 std::pair<std::shared_ptr<BTreeNode<T>>, size_t> BTree<T>::findSuccessor(const std::shared_ptr<BTreeNode<T>> &node, size_t index)const{

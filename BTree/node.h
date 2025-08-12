@@ -51,14 +51,12 @@ private:
                    std::vector<T> &&right_child_vals);
     static void updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &children,
                              std::weak_ptr<BTreeNode<T>> new_parent);
-    static size_t getChildIndex(std::vector<std::shared_ptr<BTreeNode<T>>> children, std::shared_ptr<BTreeNode<T>> child);
-    void rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index);
-    void rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index);
-    void mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index);
-    void mergeWithLeft(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index);
+    size_t getChildIndex(std::shared_ptr<BTreeNode<T>> child);
+    void rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children);
+    void rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children);
+    void mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children);
+    void mergeWithLeft(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children);
     void clearNode();
-    friend class BTree<T>;
-    
 };
 #include "node_impl.h"
 #endif

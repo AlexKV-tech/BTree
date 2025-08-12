@@ -29,7 +29,6 @@ public:
         size_t t);
     bool isLeaf()const;
     void insertVal(const T &val);
-    
     void fixUnderflow();
     void swapWithPredecessor(std::shared_ptr<BTreeNode<T>>leaf, size_t index);
     void split();

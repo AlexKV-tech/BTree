@@ -29,7 +29,7 @@ BTreeNode<T>::BTreeNode(size_t t, std::vector<T> &&values,
 {
 }
 template<typename T>
-const T& BTreeNode<T>::getValAtIndex(size_t index)const{
+inline const T&  BTreeNode<T>::getValAtIndex(size_t index)const{
     if (index >= this->values.size()) throw std::out_of_range("Value index is out of range");
     return this->values[index];
 }
@@ -48,20 +48,20 @@ size_t BTreeNode<T>::findIndexOfVal(const T &val)const{
 }
 
 template <typename T>
-void BTreeNode<T>::swapWithPredecessor(std::shared_ptr<BTreeNode<T>>leaf, size_t index){
+inline void BTreeNode<T>::swapWithPredecessor(std::shared_ptr<BTreeNode<T>>leaf, size_t index){
     if (!leaf->is_leaf) throw std::runtime_error("swapWithLeaf called on non-leaf node");
     if (index >= this->values.size()) throw std::out_of_range("Value in leaf index is out of range");
     std::swap(this->values[index], leaf->values.back());
 }
 
 template <typename T>
-bool BTreeNode<T>::isLeaf()const{
+inline bool BTreeNode<T>::isLeaf()const{
     return is_leaf;
 }
 template <typename T>
-void BTreeNode<T>::insertVal(const T &val) 
+void BTreeNode<T>::insertVal(const T &val)
 {
-    auto index = findLowerBoundIndexOfVal(val);
+    size_t index = findLowerBoundIndexOfVal(val);
     values.insert(values.begin() + index, val);
     if (values.size() >= 2 * t - 1)
     {
@@ -69,8 +69,8 @@ void BTreeNode<T>::insertVal(const T &val)
     }
 }
 template <typename T>
-void BTreeNode<T>::updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &children, std::weak_ptr<BTreeNode<T>> new_parent){
-    for (auto &c: children){c->parent = new_parent;}
+inline void BTreeNode<T>::updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &children, std::weak_ptr<BTreeNode<T>> new_parent){
+    for (std::shared_ptr<BTreeNode<T>> c: children){c->parent = new_parent;}
 }
 
 template <typename T>
@@ -88,9 +88,9 @@ void BTreeNode<T>::splitNode(std::vector<std::shared_ptr<BTreeNode<T>>>&&left_ch
                std::vector<std::shared_ptr<BTreeNode<T>>>&&right_child_children,
                std::vector<T> &&left_child_vals,
                              std::vector<T> &&right_child_vals){
-    if (auto parent_ptr = this->parent.lock()){
-        auto mid = this->values.size() / 2;
-        auto index = parent_ptr->getChildIndex(this->shared_from_this());
+    if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock()){
+        size_t mid = this->values.size() / 2;
+        size_t index = parent_ptr->getChildIndex(this->shared_from_this());
         parent_ptr->values.insert(parent_ptr->values.begin() + index, this->values[mid]);
         this->values.erase(this->values.begin() + mid, this->values.end());
         if (!this->is_leaf)
@@ -114,7 +114,7 @@ void BTreeNode<T>::splitRoot(std::vector<std::shared_ptr<BTreeNode<T>>>&&left_ch
                              std::vector<std::shared_ptr<BTreeNode<T>>>&&right_child_children,
                              std::vector<T> &&left_child_vals,
                              std::vector<T> &&right_child_vals){
-    auto mid = this->values.size() / 2;
+    size_t mid = this->values.size() / 2;
     T mid_val = this->values.at(mid);
     this->clearNode();
     auto new_left_child =
@@ -134,16 +134,16 @@ void BTreeNode<T>::splitRoot(std::vector<std::shared_ptr<BTreeNode<T>>>&&left_ch
     this->is_leaf = false;
 }
 template<typename T>
-const std::shared_ptr<BTreeNode<T>> & BTreeNode<T>::getChildAtIndex(size_t index)const{
+inline const std::shared_ptr<BTreeNode<T>> & BTreeNode<T>::getChildAtIndex(size_t index)const{
     if (index >= this->children.size()) throw std::out_of_range("Child index is out of range");
     return this->children[index];
 }
 template<typename T>
-size_t BTreeNode<T>::getChildrenCount()const{
+inline size_t BTreeNode<T>::getChildrenCount()const{
     return this->children.size();
 }
 template<typename T>
-size_t BTreeNode<T>::getValsCount()const{
+inline size_t BTreeNode<T>::getValsCount()const{
     return this->values.size();
 }
 template <typename T>
@@ -152,7 +152,7 @@ void BTreeNode<T>::split()
     if (this->values.size() < this->t * 2 - 1)
         return;
     
-    auto mid = this->values.size() / 2;
+    size_t mid = this->values.size() / 2;
     std::vector<std::shared_ptr<BTreeNode<T>>> left_child_children,right_child_children;
     if (!this->is_leaf){
         left_child_children.assign(this->children.begin(), this->children.begin() + mid + 1);
@@ -173,7 +173,7 @@ void BTreeNode<T>::split()
                         std::move(right_child_children),
                         std::move(left_child_vals),
                         std::move(right_child_vals));
-        if (auto parent_ptr = this->parent.lock())
+        if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock())
             parent_ptr->split();
         else
             throw std::runtime_error("Split called on node with empty or expired parent");
@@ -198,8 +198,8 @@ void BTreeNode<T>::fixUnderflow(){
             return;
         }
         
-        auto child = this->children.front();
-        auto new_children = child->children;
+        std::shared_ptr<BTreeNode<T>> child = this->children.front();
+        std::vector<std::shared_ptr<BTreeNode<T>>> new_children = child->children;
         this->values = child->values;
         this->children = child->children;
         updateParent(this->children, this->weak_from_this());
@@ -207,8 +207,8 @@ void BTreeNode<T>::fixUnderflow(){
         child->clearNode();
         return ;
     }
-    if (auto parent_ptr = this->parent.lock()){
-        auto index_in_parent_children = parent_ptr->getChildIndex(this->shared_from_this());
+    if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock()){
+        size_t index_in_parent_children = parent_ptr->getChildIndex(this->shared_from_this());
         std::shared_ptr<BTreeNode<T>>right_sibling{nullptr}, left_sibling{nullptr};
         if (index_in_parent_children < parent_ptr->children.size() - 1){
             right_sibling = parent_ptr->children.at(index_in_parent_children + 1);
@@ -245,12 +245,12 @@ void BTreeNode<T>::fixUnderflow(){
 }
 template <typename T>
 void BTreeNode<T>::rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children){
-    if (auto parent_ptr = this->parent.lock()){
+    if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock()){
         
-        auto parent_val = parent_ptr->values.at(index_in_parent_children - 1);
+        T parent_val = parent_ptr->values.at(index_in_parent_children - 1);
         this->values.insert(std::lower_bound(this->values.begin(), this->values.end(),parent_val), parent_val);
         parent_ptr->values.at(index_in_parent_children - 1) = left_sibling->values.back();
-        left_sibling->values.erase(left_sibling->values.end());
+        left_sibling->values.pop_back();
         if (!left_sibling->is_leaf){
             this->children.insert(this->children.begin(), left_sibling->children.back());
             this->children.front()->parent = this->shared_from_this();
@@ -264,9 +264,9 @@ void BTreeNode<T>::rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t
 }
 template <typename T>
 void BTreeNode<T>::rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children){
-    if (auto parent_ptr = this->parent.lock()){
+    if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock()){
         
-        auto parent_val = parent_ptr->values.at(index_in_parent_children);
+        T parent_val = parent_ptr->values.at(index_in_parent_children);
         this->values.insert(std::lower_bound(this->values.begin(), this->values.end(),
                                              parent_val), parent_val);
         parent_ptr->values.at(index_in_parent_children) = right_sibling->values.front();
@@ -283,7 +283,7 @@ void BTreeNode<T>::rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t
 }
 template <typename T>
 void BTreeNode<T>::mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index){
-    if (auto parent_ptr = this->parent.lock()){
+    if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock()){
         this->values.push_back(parent_ptr->values.at(index));
         parent_ptr->values.erase(parent_ptr->values.begin() + index);
         std::copy(right_sibling->values.begin(), right_sibling->values.end(),
@@ -299,7 +299,7 @@ void BTreeNode<T>::mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, si
 }
 template <typename T>
 void BTreeNode<T>::mergeWithLeft(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index){
-    if (auto parent_ptr = this->parent.lock()){
+    if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock()){
         this->values.push_back(parent_ptr->values.at(index - 1));
         parent_ptr->values.erase(parent_ptr->values.begin() + index - 1);
         this->values.insert(this->values.begin(), left_sibling->values.begin(), left_sibling->values.end());
@@ -312,7 +312,7 @@ void BTreeNode<T>::mergeWithLeft(std::shared_ptr<BTreeNode<T>>left_sibling, size
     }
 }
 template <typename T>
-void BTreeNode<T>::clearNode(){
+inline void BTreeNode<T>::clearNode(){
     this->values.clear();
     this->children.clear();
     

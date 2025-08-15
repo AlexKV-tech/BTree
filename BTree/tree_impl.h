@@ -56,7 +56,7 @@ void BTree<T>::remove(const T &val){
         auto [predecessor, _] = findPredecessor(node, index);
         node->swapWithPredecessor(predecessor, index);
         node = predecessor;
-        index = node->findIndexOfVal(val); // recalculating index of val -> another vector
+        index = node->findIndexOfVal(val);
     }
     
     node->removeValueByIndex(index);

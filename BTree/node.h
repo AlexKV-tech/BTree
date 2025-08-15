@@ -20,12 +20,12 @@ class BTreeNode : public std::enable_shared_from_this<BTreeNode<T>>
 
 public:
     ~BTreeNode() = default;
-    explicit BTreeNode(
+    BTreeNode(
         size_t t, std::vector<T> &&values,
         std::vector<std::shared_ptr<BTreeNode<T>>> &&children,
         std::weak_ptr<BTreeNode<T>> parent, bool is_root,
         bool is_leaf);
-    BTreeNode(
+    explicit BTreeNode(
         size_t t);
     bool isLeaf()const;
     void insertVal(const T &val);
@@ -40,14 +40,8 @@ public:
     size_t getChildrenCount()const;
     size_t getValsCount()const;
 private:
-    void splitRoot(std::vector<std::shared_ptr<BTreeNode<T>>>&&left_child_children,
-                                 std::vector<std::shared_ptr<BTreeNode<T>>>&&right_child_children,
-                                 std::vector<T> &&left_child_vals,
-                                 std::vector<T> &&right_child_vals);
-    void splitNode(std::vector<std::shared_ptr<BTreeNode<T>>>&&left_child_children,
-                   std::vector<std::shared_ptr<BTreeNode<T>>>&&right_child_children,
-                   std::vector<T> &&left_child_vals,
-                   std::vector<T> &&right_child_vals);
+    void splitRoot();
+    void splitNode();
     static void updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &children,
                              std::weak_ptr<BTreeNode<T>> new_parent);
     size_t getChildIndex(std::shared_ptr<BTreeNode<T>> child);

@@ -7,12 +7,13 @@
 
 int main()
 {
-    BTree<int> a(2);
-    for (int i = 0; i <= 1000; i++){
+    int t = 3;
+    BTree<int> a(t);
+    for (int i = 0; i <= 2000; i++){
         a.insert(i);
     }
-    //std::cout << a << '\n';
-    for (int i = 1001; i >= 1; i--){
+    std::cout << a << '\n';
+    for (int i = 1; i <= 1999; i++){
         a.remove(i);
     }
     std::cout << a;

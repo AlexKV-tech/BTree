@@ -1,13 +1,6 @@
 #ifndef NODE_IMPL_TPP
 #define NODE_IMPL_TPP
 #include <cassert>
-/*
- 1) Root reassignment
- 2) Structure improvement: 1. Parents update in a separate function 2. Values swaps in a separate function(in BTree)
- 3) Flags update
- 
- */
-
 template <typename T>
 BTreeNode<T>::BTreeNode(size_t t):
 t{t}, is_root{true},
@@ -77,7 +70,7 @@ template <typename T>
 size_t BTreeNode<T>::getChildIndex(std::shared_ptr<BTreeNode<T>> child){
     auto it =
         std::find(this->children.begin(),
-                         this->children.end(), child); // more efficient way??
+                         this->children.end(), child);
     if (it == this->children.end() || *it != child) {
         throw std::runtime_error("Node not found in parent's children");
     }

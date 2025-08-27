@@ -23,7 +23,7 @@ public:
     BTreeNode(
         size_t t, std::vector<T> &&values,
         std::vector<std::shared_ptr<BTreeNode<T>>> &&children,
-        std::weak_ptr<BTreeNode<T>> parent, bool is_root,
+        const std::weak_ptr<BTreeNode<T>> &parent, bool is_root,
         bool is_leaf);
     explicit BTreeNode(
         size_t t);
@@ -44,7 +44,7 @@ private:
     void splitNode();
     static void updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &children,
                              std::weak_ptr<BTreeNode<T>> new_parent);
-    size_t getChildIndex(std::shared_ptr<BTreeNode<T>> child);
+    size_t getChildIndex(const std::shared_ptr<BTreeNode<T>> &child);
     void rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children);
     void rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children);
     void mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children);

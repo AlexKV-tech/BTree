@@ -2,56 +2,53 @@
 #define TREE_IMPL_TPP
 #include <format>
 
-template <typename T>
-BTree<T>::BTree(size_t t)
-    : t{t}, root{std::make_shared<BTreeNode<T>>(t)}
-{
-}
+
 template <typename T>
 std::pair<std::shared_ptr<BTreeNode<T>>, size_t> BTree<T>::find(const T& val)const
 {
     std::shared_ptr<BTreeNode<T>> node = root;
-    while (!node->isLeaf())
+    while (node)
     {
         size_t index = node->findLowerBoundIndexOfVal(val);
         bool lower_bound_in_node = index != node->getValsCount();
         if (lower_bound_in_node && node->getValAtIndex(index) == val)
-        {
-            return {node, index};
-        }
+            return { node, index };
+        else if (!node->isLeaf())
+            node = lower_bound_in_node ? node->getChildAtIndex(index) : node->getChildAtIndex(node->getChildrenCount() - 1);
         else
-        {
-            node = lower_bound_in_node ? node->getChildAtIndex(index): node->getChildAtIndex(node->getChildrenCount() - 1);
-        }
+            return ((index < node->getValsCount() && node->getValAtIndex(index) == val) ? std::make_pair(node, index): std::make_pair(nullptr, 0));
     }
-    size_t index = node->findLowerBoundIndexOfVal(val);
-    if (index == node->getValsCount() || node->getValAtIndex(index) != val)
-    {
-        return {nullptr, 0};
-    }
-    return {node, index};
+    return std::make_pair(nullptr, 0);
+    
 }
 template <typename T>
 void BTree<T>::insert(const T& val)
 {
+    /*
+    Trying to insert a value val into the leaf node
+    std::runtime_error is thrown, when attempting to insert a value that is already in the tree
+    */
     std::shared_ptr<BTreeNode<T>> node = root;
     while (!node->isLeaf())
     {
-        
         size_t index = node->findLowerBoundIndexOfVal(val);
         bool lower_bound_in_node = index != node->getValsCount();
-        if (lower_bound_in_node && node->getValAtIndex(index) == val) throw std::runtime_error(std::format("Value with key = {} is already in the tree", val));
-        node = lower_bound_in_node ? node->getChildAtIndex(index):
-        node->getChildAtIndex(node->getChildrenCount() - 1);
+        if (lower_bound_in_node && node->getValAtIndex(index) == val) 
+            throw std::runtime_error(std::format("Value with key = {} is already in the tree", val));
+        if (lower_bound_in_node)
+            node = node->getChildAtIndex(index);
+        else
+            node = node->getChildAtIndex(node->getChildrenCount() - 1);
+       
     }
     node->insertVal(val);
 }
 template<typename T>
 void BTree<T>::remove(const T &val){
     auto [node, index] = this->find(val);
-    if (!node){
+    if (!node)
         throw std::runtime_error(std::format("Node with key = {} was not found in the tree", val));
-    }
+    
     if (!node->isLeaf()){
         auto [predecessor, _] = findPredecessor(node, index);
         node->swapWithPredecessor(predecessor, index);
@@ -65,18 +62,18 @@ void BTree<T>::remove(const T &val){
 template<typename T>
 std::pair<std::shared_ptr<BTreeNode<T>>, size_t> BTree<T>::findPredecessor(const std::shared_ptr<BTreeNode<T>> &node, size_t index)const{
     std::shared_ptr<BTreeNode<T>> predecessor = node->getChildAtIndex(index);
-    while (!predecessor->isLeaf()){
+    while (!predecessor->isLeaf())
         predecessor = predecessor->getChildAtIndex(predecessor->getChildrenCount() - 1);
-    }
+    
     return {predecessor, predecessor->getValsCount()};
 }
 template<typename T>
 std::pair<std::shared_ptr<BTreeNode<T>>, size_t> BTree<T>::findSuccessor(const std::shared_ptr<BTreeNode<T>> &node, size_t index)const{
     std::shared_ptr<BTreeNode<T>> node_ptr = node.lock();
     std::shared_ptr<BTreeNode<T>> successor = node_ptr->getChildren()[index + 1];
-    while (!successor->isLeaf()){
+    while (!successor->isLeaf())
         successor = successor->getChildren().front();
-    }
+    
     return {successor, 0};
 }
 template<typename T>

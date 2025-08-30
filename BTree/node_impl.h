@@ -1,49 +1,28 @@
 #ifndef NODE_IMPL_TPP
 #define NODE_IMPL_TPP
 #include <cassert>
-template <typename T>
-BTreeNode<T>::BTreeNode(size_t t):
-t{t}, is_root{true},
-is_leaf{true}
-{
-    
-}
-template <typename T>
-BTreeNode<T>::BTreeNode(size_t t, std::vector<T> &&values,
-                        std::vector<std::shared_ptr<BTreeNode<T>>> &&children,
-                        const std::weak_ptr<BTreeNode<T>> &parent, bool is_root,
-                        bool is_leaf)
-    : t{t},
-      values{values},
-      children{children},
-      parent{parent},
-      is_root{is_root},
-      is_leaf{is_leaf}
-{
-}
+#include "node.h"
+
+
 template<typename T>
 inline const T&  BTreeNode<T>::getValAtIndex(size_t index)const
 {
     if (index >= this->values.size())
         throw std::out_of_range("Value index is out of range");
-    
     return this->values[index];
 }
 template <typename T>
 size_t BTreeNode<T>::findLowerBoundIndexOfVal(const T &val)const
 {
     auto it = std::lower_bound(this->values.begin(), this->values.end(), val);
-    
     if (it == this->values.end())
         return this->values.size();
-    
     return std::distance(this->values.begin(), it);
 }
 template<typename T>
 size_t BTreeNode<T>::findIndexOfVal(const T &val)const
 {
     auto index = this->findLowerBoundIndexOfVal(val);
-    
     if (index == this->values.size() || this->values[index] != val)
         throw std::runtime_error("Value not found");
     
@@ -99,28 +78,32 @@ void BTreeNode<T>::splitNode()
     {
         size_t mid = this->values.size() / 2;
         
+        // decouple the right part(children and values) of the current node and leave the left part intact
         std::vector<std::shared_ptr<BTreeNode<T>>> right_child_children;
         if (!this->is_leaf)
-            right_child_children.assign(this->children.begin() + mid + 1, this->children.end());
+            right_child_children.assign(this->children.begin() + mid + 1, this->children.end()); 
         std::vector<T> right_child_vals(this->values.begin() + mid + 1, this->values.end());
         
-        size_t index = parent_ptr->getChildIndex(this->shared_from_this());
-        parent_ptr->values.insert(parent_ptr->values.begin() + index, this->values[mid]);
+        // lift the mid to the parent
+        size_t this_index_in_parent_children = parent_ptr->getChildIndex(this->shared_from_this());
+        parent_ptr->values.insert(parent_ptr->values.begin() + this_index_in_parent_children, this->values[mid]);
+
+        // remove the right part and the mid from the current node
         this->values.erase(this->values.begin() + mid, this->values.end());
-        
         if (!this->is_leaf)
             this->children.erase(this->children.begin() + mid + 1, this->children.end());
         
+        // construct the right sibling of the current node(a new child of the parent of the current node right to the this)
         auto parent_right_child = std::make_shared<BTreeNode<T>>(this->t, std::move(right_child_vals),
                                                                  std::move(right_child_children),
                                                                  this->parent, false, this->is_leaf);
         updateParent(parent_right_child->children, parent_right_child);
-        parent_ptr->children.insert(parent_ptr->children.begin() + index + 1,
-                                      parent_right_child);
+        parent_ptr->children.insert(parent_ptr->children.begin() + this_index_in_parent_children + 1,
+                                      parent_right_child); // add the right sibling right to the current node in the parent's children
     }
     else
     {
-        throw std::runtime_error("splitNode called on empty parent");
+        throw std::runtime_error("splitNode called on an invalid parent");
     }
 }
 template <typename T>
@@ -129,6 +112,7 @@ void BTreeNode<T>::splitRoot()
     size_t mid = this->values.size() / 2;
     T mid_val = this->values.at(mid);
     
+    //prepare the left and right parts of the root
     std::vector<std::shared_ptr<BTreeNode<T>>> left_child_children, right_child_children;
     if (!this->is_leaf)
     {
@@ -138,8 +122,10 @@ void BTreeNode<T>::splitRoot()
     std::vector<T> left_child_vals(this->values.begin(), this->values.begin() + mid);
     std::vector<T> right_child_vals(this->values.begin() + mid + 1, this->values.end());
     
+
     this->clearNode();
     
+    // construct the left and right children of the root from the parts
     auto new_left_child =
         std::make_shared<BTreeNode<T>>(this->t, std::move(left_child_vals),
                                        std::move(left_child_children),
@@ -152,10 +138,12 @@ void BTreeNode<T>::splitRoot()
                                        this->is_leaf);
     updateParent(new_left_child->children, new_left_child);
     updateParent(new_right_child->children, new_right_child);
-    
+
+   
     this->children = {new_left_child, new_right_child};
-    this->values = {mid_val};
-    this->is_leaf = false;
+    this->values = {mid_val}; // leave the middle intact(was removed after calling clearNode())
+    this->is_leaf = false; // the root is not a leaf anymore
+    // NOTE: this methods leaves the root pointer intact, so the reassignment in the actual Tree class is unnecessary
 }
 template<typename T>
 inline const std::shared_ptr<BTreeNode<T>> & BTreeNode<T>::getChildAtIndex(size_t index)const
@@ -209,21 +197,20 @@ void BTreeNode<T>::removeValueByIndex(size_t index){
 template <typename T>
 void BTreeNode<T>::fixUnderflow()
 {
-    if (this->values.size() >= t - 1 || (this->is_root && this->values.size() > 0))
+    if (this->values.size() >= t - 1 || (this->is_root && this->values.size() > 0)) // the node is valid
     {
         return;
     }
     else if (this->is_root)
     {
-        this->is_leaf = true;
+        this->is_leaf = true; // underflow in root causes merge with child and leaves only the root as the only node in a B-Tree 
         
         if (this->children.empty())
             return;
-        
+        // underflow in root can occur with only one child
         assert(this->children.size() == 1);
-        
         std::shared_ptr<BTreeNode<T>> child = this->children.front();
-        std::vector<std::shared_ptr<BTreeNode<T>>> new_children = child->children;
+
         this->values = child->values;
         this->children = child->children;
         updateParent(this->children, this->weak_from_this());
@@ -234,38 +221,39 @@ void BTreeNode<T>::fixUnderflow()
     }
     if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock())
     {
-        size_t index_in_parent_children = parent_ptr->getChildIndex(this->shared_from_this());
+        size_t this_index_in_parent_children = parent_ptr->getChildIndex(this->shared_from_this());
+        
         
         std::shared_ptr<BTreeNode<T>>right_sibling{nullptr}, left_sibling{nullptr};
         
-        if (index_in_parent_children < parent_ptr->children.size() - 1)
-            right_sibling = parent_ptr->children.at(index_in_parent_children + 1);
+        if (this_index_in_parent_children < parent_ptr->children.size() - 1)
+            right_sibling = parent_ptr->children.at(this_index_in_parent_children + 1);
         
-        if (index_in_parent_children > 0)
-            left_sibling = parent_ptr->children.at(index_in_parent_children - 1);
+        if (this_index_in_parent_children > 0)
+            left_sibling = parent_ptr->children.at(this_index_in_parent_children - 1);
         
         if (left_sibling && right_sibling)
         {
-            if (left_sibling->values.size() >= t)
-                this->rotateRight(left_sibling, index_in_parent_children);
-            else if (right_sibling->values.size() >= t)
-                this->rotateLeft(right_sibling, index_in_parent_children);
+            if (left_sibling->values.size() >= t) 
+                this->rotateRight(left_sibling, this_index_in_parent_children); // can borrow from the left sibling
+            else if (right_sibling->values.size() >= t) 
+                this->rotateLeft(right_sibling, this_index_in_parent_children); // can borrow from the right sibling
             else
-                this->mergeWithRight(right_sibling, index_in_parent_children);
+                this->mergeWithRight(right_sibling, this_index_in_parent_children); // both siblings don't have enough elements to share
         }
         else if (left_sibling)
         {
             if (left_sibling->values.size() >= t)
-                this->rotateRight(left_sibling, index_in_parent_children);
+                this->rotateRight(left_sibling, this_index_in_parent_children); // can borrow from the left sibling
             else
-                this->mergeWithLeft(left_sibling, index_in_parent_children);
+                this->mergeWithLeft(left_sibling, this_index_in_parent_children); // left sibling don't have enough elements to share
         }
         else if (right_sibling)
         {
             if (right_sibling->values.size() >= t)
-                this->rotateLeft(right_sibling, index_in_parent_children);
+                this->rotateLeft(right_sibling, this_index_in_parent_children); // can borrow from the right sibling
             else
-                this->mergeWithRight(right_sibling, index_in_parent_children);
+                this->mergeWithRight(right_sibling, this_index_in_parent_children); // right sibling don't have enough elements to share
         }
         
         parent_ptr->fixUnderflow();
@@ -275,23 +263,31 @@ void BTreeNode<T>::fixUnderflow()
         throw std::runtime_error("fixUnderflow called on node with empty or expired parent");
     }
 }
+
+// Perform clockwise rotation considering the current node a center
 template <typename T>
-void BTreeNode<T>::rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children)
+void BTreeNode<T>::rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t this_index_in_parent_children)
 {
-    if (index_in_parent_children < 1)
+    if (this_index_in_parent_children < 1)
         throw std::runtime_error("rotateRight called on most left node");
     
     if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock())
     {
-        T parent_val = parent_ptr->values.at(index_in_parent_children - 1);
-        this->values.insert(std::lower_bound(this->values.begin(), this->values.end(),parent_val), parent_val);
+        /* Since in a correct node every node has one more child than values the index of the current node 
+        in parent's children is shifted on 1 to the right.
+        So, to borrow the separator between the current node(located to the right of the separator) and 
+        it's left sibling 1 must be subtracted from the index current node's index in parent's children vector
+        */ 
+        T parent_val = parent_ptr->values.at(this_index_in_parent_children - 1); 
+        this->values.insert(std::lower_bound(this->values.begin(), this->values.end(),parent_val), parent_val); // borrow the separator from the parent
         
-        parent_ptr->values.at(index_in_parent_children - 1) = left_sibling->values.back();
-        
+        parent_ptr->values.at(this_index_in_parent_children - 1) = left_sibling->values.back(); // a "donor" element from the left sibling becomes a new separator
         left_sibling->values.pop_back();
+
         if (!left_sibling->is_leaf)
         {
-            this->children.insert(this->children.begin(), left_sibling->children.back());
+            this->children.insert(this->children.begin(), left_sibling->children.back()); // attach the child from the "donor" element to the current node
+
             this->children.front()->parent = this->shared_from_this();
             left_sibling->children.pop_back();
         }
@@ -301,20 +297,30 @@ void BTreeNode<T>::rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t
         throw std::runtime_error("rotateRight called on node with empty or expired parent");
     }
 }
+
+// Perform counterclockwise rotation considering the current node a center
 template <typename T>
-void BTreeNode<T>::rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children){
+void BTreeNode<T>::rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t this_index_in_parent_children){
     if (std::shared_ptr<BTreeNode<T>> parent_ptr = this->parent.lock())
     {
-        T parent_val = parent_ptr->values.at(index_in_parent_children);
+
+
+        /*
+        Since in a correct node every node has one more child than values 
+        the index of the current node in parent's children is shifted on 1 to the right.
+        So, to borrow the separator between the current node(located to the left of the separator) 
+        and it's right sibling nothing must be subtracted from the index current node's index in parent's children vector
+        */ 
+        T parent_val = parent_ptr->values.at(this_index_in_parent_children); 
         this->values.insert(std::lower_bound(this->values.begin(), this->values.end(),
-                                             parent_val), parent_val);
+                                             parent_val), parent_val); // borrow the separator from the parent
         
-        parent_ptr->values.at(index_in_parent_children) = right_sibling->values.front();
+        parent_ptr->values.at(this_index_in_parent_children) = right_sibling->values.front(); // a "donor" element from the right sibling becomes a new separator
         
         right_sibling->values.erase(right_sibling->values.begin());
         if (!right_sibling->is_leaf)
         {
-            this->children.push_back(right_sibling->children.front());
+            this->children.push_back(right_sibling->children.front()); // attach the child from the "donor" element to the current node
             this->children.back()->parent = this->shared_from_this();
             right_sibling->children.erase(right_sibling->children.begin());
         }

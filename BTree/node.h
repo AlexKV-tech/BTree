@@ -20,13 +20,53 @@ class BTreeNode : public std::enable_shared_from_this<BTreeNode<T>>
 
 public:
     ~BTreeNode() = default;
-    BTreeNode(
-        size_t t, std::vector<T> &&values,
-        std::vector<std::shared_ptr<BTreeNode<T>>> &&children,
-        const std::weak_ptr<BTreeNode<T>> &parent, bool is_root,
-        bool is_leaf);
     explicit BTreeNode(
-        size_t t);
+        size_t t, std::vector<T>&& values,
+        std::vector<std::shared_ptr<BTreeNode<T>>>&& children,
+        const std::weak_ptr<BTreeNode<T>>& parent, bool is_root,
+        bool is_leaf) : t{ t },
+        values{ values },
+        children{ children },
+        parent{ parent },
+        is_root{ is_root },
+        is_leaf{ is_leaf } {
+    }
+    BTreeNode(BTreeNode&& other) noexcept :t{ other.t }, values{ std::exchange(other.values, nullptr) },
+        children{ std::exchange(other.children, nullptr) }, parent{ parent },
+        is_root{ is_root },
+        is_leaf{ is_leaf } {
+    }
+    BTreeNode& operator=(BTreeNode&& other) noexcept  {
+        if (*this == other)
+            return *this;
+        t = other.t;
+        values = std::exchange(other.values, nullptr);
+        children = std::exchange(other.children, nullptr);
+        parent = other.parent;
+        is_root = other.is_root;
+        is_leaf = other.is_leaf;
+        return *this;
+
+    }
+    BTreeNode(const BTreeNode& other) :t{ other.t }, values{ other.values }, children{ other.children }, parent{other.parent},
+        is_root{ other.is_root }, is_leaf{ other.is_leaf } {
+    }
+    BTreeNode& operator=(const BTreeNode& other) {
+        if (*this == other)
+            return *this;
+        t = other.t;
+        values = other.values;
+        children = other.children;
+        parent = other.parent;
+        is_root = other.is_root;
+        is_leaf = other.is_leaf;
+        return *this;
+    }
+    explicit BTreeNode(
+        size_t t) :
+        t{ t }, is_root{ true },
+        is_leaf{ true } {
+    }
     bool isLeaf()const;
     void insertVal(const T &val);
     void fixUnderflow();
@@ -45,10 +85,10 @@ private:
     static void updateParent(std::vector<std::shared_ptr<BTreeNode<T>>> &children,
                              std::weak_ptr<BTreeNode<T>> new_parent);
     size_t getChildIndex(const std::shared_ptr<BTreeNode<T>> &child);
-    void rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children);
-    void rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children);
-    void mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, size_t index_in_parent_children);
-    void mergeWithLeft(std::shared_ptr<BTreeNode<T>>left_sibling, size_t index_in_parent_children);
+    void rotateLeft(std::shared_ptr<BTreeNode<T>>right_sibling, size_t this_index_in_parent_children);
+    void rotateRight(std::shared_ptr<BTreeNode<T>>left_sibling, size_t this_index_in_parent_children);
+    void mergeWithRight(std::shared_ptr<BTreeNode<T>>right_sibling, size_t this_index_in_parent_children);
+    void mergeWithLeft(std::shared_ptr<BTreeNode<T>>left_sibling, size_t this_index_in_parent_children);
     void clearNode();
 };
 #include "node_impl.h"
